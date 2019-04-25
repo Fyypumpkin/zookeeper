@@ -485,9 +485,11 @@ public class FastLeaderElection implements Election {
             public void run() {
                 while (!stop) {
                     try {
+                        // todo 没 3000 中从队列中获取一次
                         ToSend m = sendqueue.poll(3000, TimeUnit.MILLISECONDS);
                         if(m == null) continue;
 
+                        // todo 调用 QuorumCnxManager 的 toSend 方法发送
                         process(m);
                     } catch (InterruptedException e) {
                         break;
@@ -727,6 +729,7 @@ public class FastLeaderElection implements Election {
      * @param id    Server identifier
      * @param zxid  Last zxid observed by the issuer of this vote
      */
+    // todo 选举的主要逻辑
     protected boolean totalOrderPredicate(long newId, long newZxid, long newEpoch, long curId, long curZxid, long curEpoch) {
         LOG.debug("id: " + newId + ", proposed id: " + curId + ", zxid: 0x" +
                 Long.toHexString(newZxid) + ", proposed zxid: 0x" + Long.toHexString(curZxid));
@@ -741,7 +744,8 @@ public class FastLeaderElection implements Election {
          * 3- New epoch is the same as current epoch, new zxid is the same
          *  as current zxid, but server id is higher.
          */
-
+        // todo 逻辑时钟大于当前的 || 逻辑时钟等于当前 并且 （事务id -> 机器 id）
+        // todo 逻辑时钟小的会直接被抛弃
         return ((newEpoch > curEpoch) ||
                 ((newEpoch == curEpoch) &&
                 ((newZxid > curZxid) || ((newZxid == curZxid) && (newId > curId)))));
@@ -923,13 +927,17 @@ public class FastLeaderElection implements Election {
 
             int notTimeout = minNotificationInterval;
 
+            // todo 给自己投票
             synchronized(this){
                 logicalclock.incrementAndGet();
+                // todo InitId 就是配置的 myid 文件
                 updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
             }
 
             LOG.info("New election. My id =  " + self.getId() +
                     ", proposed zxid=0x" + Long.toHexString(proposedZxid));
+
+            // todo 异步发送消息，通过放入一个队列中 （WorkerSender 处理，交给 QuorumCnxManager 的 toSend 方法）
             sendNotifications();
 
             SyncedLearnerTracker voteSet;
@@ -938,12 +946,14 @@ public class FastLeaderElection implements Election {
              * Loop in which we exchange notifications until we find a leader
              */
 
+            // todo 当前状态是 looking 并且没有停止
             while ((self.getPeerState() == ServerState.LOOKING) &&
                     (!stop)){
                 /*
                  * Remove next notification from queue, times out after 2 times
                  * the termination time
                  */
+                // todo 从消息队列里获取收到的消息
                 Notification n = recvqueue.poll(notTimeout,
                         TimeUnit.MILLISECONDS);
 

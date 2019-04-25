@@ -609,8 +609,11 @@ public class QuorumCnxManager {
         /*
          * If sending message to myself, then simply enqueue it (loopback).
          */
+
+        // todo 判断是否给自己的，这个 sid 就是本地 ip
         if (this.mySid == sid) {
              b.position(0);
+             // todo 发送给自己的就直接加到接收队列
              addToRecvQueue(new Message(b.duplicate(), sid));
             /*
              * Otherwise send to the corresponding thread to send.
@@ -627,6 +630,8 @@ public class QuorumCnxManager {
              } else {
                  addToSendQueue(bq, b);
              }
+
+             //todo 真正发送
              connectOne(sid);
 
         }
